@@ -1,0 +1,6 @@
+{
+  "name": "Futebas",
+  "description": "Futebas - Placares ao vivo, tabela do Brasileirão e Champions League, escalações, substituições e estatísticas em tempo real.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
