@@ -7,7 +7,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Header } from './components/Header.tsx';
 import {
   CompetitionTabs,
-  LeagueTab,
   FilterStatus,
 } from './components/CompetitionTabs.tsx';
 import { MatchCard } from './components/MatchCard.tsx';
@@ -32,15 +31,21 @@ import {
   ApiConfig,
   DEFAULT_API_CONFIG,
   SIMULATED_MATCHES,
+  SUPPORTED_LEAGUES,
   fetchEspnScores,
   fetchEspnScoresForDateMode,
   fetchRapidApiScores,
 } from './services/soccerApi.ts';
 import {
+  NotificationSettings,
+  getNotificationSettings,
+  toggleMatchNotification,
+  isMatchNotificationEnabled,
+  sendBrowserNotification,
+} from './utils/notifications.ts';
+import {
   Search,
-  Trophy,
   Star,
-  Shield,
   Loader2,
   Calendar,
 } from 'lucide-react';
@@ -50,13 +55,18 @@ const POPULAR_TEAMS = [
   'Palmeiras',
   'Real Madrid',
   'Manchester City',
+  'Barcelona',
   'São Paulo',
   'Corinthians',
-  'Barcelona',
+  'Liverpool',
   'Arsenal',
 ];
 
 export default function App() {
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(() => {
+    return getNotificationSettings();
+  });
+
   const [config, setConfig] = useState<ApiConfig>(() => {
     try {
       const saved = localStorage.getItem('soccer_api_config');
@@ -88,7 +98,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
-  const [activeTab, setActiveTab] = useState<LeagueTab>('all');
+  const [activeTab, setActiveTab] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('all');
   const [dateOption, setDateOption] = useState<'yesterday' | 'today' | 'tomorrow'>('today');
   const [dateFilterMode, setDateFilterMode] = useState<DateFilterMode>('today');
@@ -111,7 +121,7 @@ export default function App() {
   const [isStandaloneModalOpen, setIsStandaloneModalOpen] = useState<boolean>(false);
   const [isStandingsOpen, setIsStandingsOpen] = useState<boolean>(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState<boolean>(false);
-  const [standingsLeague, setStandingsLeague] = useState<'brasileirao' | 'champions'>('brasileirao');
+  const [standingsLeague, setStandingsLeague] = useState<string>('brasileirao');
   const [lastUpdated, setLastUpdated] = useState<Date | null>(new Date());
 
   const prevScoresRef = useRef<Map<string, { home: number | null; away: number | null }>>(new Map());
@@ -134,6 +144,14 @@ export default function App() {
       } catch {}
       return updated;
     });
+  };
+
+  const handleToggleNotification = (matchId: string) => {
+    const isNowSubscribed = toggleMatchNotification(matchId);
+    setNotificationSettings(getNotificationSettings());
+    if (isNowSubscribed && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
   };
 
   const loadMatches = useCallback(
@@ -165,30 +183,56 @@ export default function App() {
           });
           setIsLoading(false);
           setIsRefreshing(false);
-        }, 180);
+        }, 120);
         return;
       }
 
       try {
-        let uclData: MatchData[] = [];
-        let braData: MatchData[] = [];
+        // Determine leagues to query - query all supported leagues
+        const allLeaguesList = [
+          'brasileirao',
+          'champions',
+          'premier',
+          'la_liga',
+          'libertadores',
+          'copa_brasil',
+          'serie_b',
+          'serie_a_it',
+          'bundesliga',
+        ];
+        const leaguesToQuery =
+          activeTab !== 'all' && activeTab !== 'favorites'
+            ? [activeTab, ...allLeaguesList.filter((l) => l !== activeTab)]
+            : allLeaguesList;
+
+        let combined: MatchData[] = [];
 
         if (config.provider === 'rapidapi' && config.rapidApiKey) {
-          [uclData, braData] = await Promise.all([
-            fetchRapidApiScores('champions', config.rapidApiKey).catch(() => []),
-            fetchRapidApiScores('brasileirao', config.rapidApiKey).catch(() => []),
-          ]);
+          const results = await Promise.all(
+            leaguesToQuery.map((lg) =>
+              fetchRapidApiScores(lg as any, config.rapidApiKey!).catch(() => [])
+            )
+          );
+          combined = results.flat();
         } else {
-          [uclData, braData] = await Promise.all([
-            fetchEspnScoresForDateMode('champions', dateFilterMode, customDateParam).catch(() => []),
-            fetchEspnScoresForDateMode('brasileirao', dateFilterMode, customDateParam).catch(() => []),
-          ]);
+          const results = await Promise.all(
+            leaguesToQuery.map((lg) =>
+              fetchEspnScoresForDateMode(lg, dateFilterMode, customDateParam).catch(() => [])
+            )
+          );
+          combined = results.flat();
         }
 
-        const combined = [...uclData, ...braData];
+        // Deduplicate
+        const seenIds = new Set<string>();
+        const unique = combined.filter((m) => {
+          if (seenIds.has(m.id)) return false;
+          seenIds.add(m.id);
+          return true;
+        });
 
-        // Track goals for instant alert & chime
-        combined.forEach((match) => {
+        // Track real goals silently for instant sound chime & alert
+        unique.forEach((match) => {
           if (match.status.state === 'live' && match.homeTeam.score !== null && match.awayTeam.score !== null) {
             const prev = prevScoresRef.current.get(match.id);
             if (
@@ -202,17 +246,37 @@ export default function App() {
               const scoringTeam = isHomeScorer ? match.homeTeam.name : match.awayTeam.name;
               const teamLogo = isHomeScorer ? match.homeTeam.logo : match.awayTeam.logo;
 
-              setGoalAlert({
-                id: `goal-${match.id}-${Date.now()}`,
-                player: scorerName,
-                minute,
-                teamName: scoringTeam,
-                teamLogo,
-                score: `${match.homeTeam.score} x ${match.awayTeam.score}`,
+              // Strictly notify ONLY if the user explicitly subscribed to this match or team
+              const isSubscribedToMatch = notificationSettings.subscribedMatchIds.includes(match.id);
+              const isSubscribedToTeam = notificationSettings.subscribedTeamNames.some((t) => {
+                const norm = t.toLowerCase();
+                return (
+                  match.homeTeam.name.toLowerCase().includes(norm) ||
+                  match.awayTeam.name.toLowerCase().includes(norm)
+                );
               });
+              const shouldNotify =
+                notificationSettings.enabled && (isSubscribedToMatch || isSubscribedToTeam);
 
-              if (soundEnabled) {
-                playGoalChime();
+              if (shouldNotify) {
+                setGoalAlert({
+                  id: `goal-${match.id}-${Date.now()}`,
+                  player: scorerName,
+                  minute,
+                  teamName: scoringTeam,
+                  teamLogo,
+                  score: `${match.homeTeam.score} x ${match.awayTeam.score}`,
+                });
+
+                if (soundEnabled) {
+                  playGoalChime();
+                }
+
+                sendBrowserNotification(
+                  `⚽ GOL! ${scoringTeam}`,
+                  `${scorerName} aos ${minute}! Placar: ${match.homeTeam.score} x ${match.awayTeam.score}`,
+                  teamLogo
+                );
               }
             }
             prevScoresRef.current.set(match.id, {
@@ -222,20 +286,21 @@ export default function App() {
           }
         });
 
-        if (combined.length === 0) {
-          // If no matches returned for specific slice, fallback to active tournament scoreboard
-          const [uclFallback, braFallback] = await Promise.all([
-            fetchEspnScores('champions').catch(() => []),
+        if (unique.length === 0) {
+          // Fallback to active rounds or simulated
+          const fallbackResults = await Promise.all([
             fetchEspnScores('brasileirao').catch(() => []),
+            fetchEspnScores('champions').catch(() => []),
+            fetchEspnScores('premier').catch(() => []),
           ]);
-          const roundMatches = [...uclFallback, ...braFallback];
+          const roundMatches = fallbackResults.flat();
           if (roundMatches.length > 0) {
             setMatches(roundMatches);
           } else {
             setMatches(SIMULATED_MATCHES);
           }
         } else {
-          setMatches(combined);
+          setMatches(unique);
         }
         setLastUpdated(new Date());
       } catch {
@@ -246,14 +311,14 @@ export default function App() {
         setIsRefreshing(false);
       }
     },
-    [isSimulated, config, dateFilterMode, customDateParam, soundEnabled]
+    [isSimulated, config, dateFilterMode, customDateParam, soundEnabled, activeTab]
   );
 
   useEffect(() => {
     loadMatches();
   }, [loadMatches]);
 
-  // Fast auto-refresh timer (default 15 seconds) so user never misses a goal
+  // Fast auto-refresh timer (silently in background without popups)
   useEffect(() => {
     if (!config.autoPolling) return;
     setSecondsLeft(config.pollIntervalSec);
@@ -294,18 +359,26 @@ export default function App() {
     else if (mode === 'today') setDateOption('today');
   };
 
-  const filteredMatches = matches.filter((match) => {
+  // Ensure every league selected displays games even when off-season or outside live broadcast hours
+  const effectiveMatches = React.useMemo(() => {
+    const list = [...matches];
+    const presentLeagues = new Set(list.map((m) => m.leagueId));
+
+    if (activeTab !== 'all' && activeTab !== 'favorites' && !presentLeagues.has(activeTab)) {
+      const fallback = SIMULATED_MATCHES.filter((m) => m.leagueId === activeTab);
+      return [...list, ...fallback];
+    }
+    return list;
+  }, [matches, activeTab]);
+
+  const filteredMatches = effectiveMatches.filter((match) => {
     if (activeTab === 'favorites') {
       const isFav = isMatchFavorite(match, favoriteMatchIds, favoriteTeamNames);
       if (!isFav) return false;
-    }
-
-    if (activeTab === 'champions' && match.leagueId !== 'champions') {
-      return false;
-    }
-
-    if (activeTab === 'brasileirao' && match.leagueId !== 'brasileirao') {
-      return false;
+    } else if (activeTab !== 'all') {
+      if (match.leagueId !== activeTab) {
+        return false;
+      }
     }
 
     if (statusFilter !== 'all' && match.status.state !== statusFilter) {
@@ -326,76 +399,62 @@ export default function App() {
     return true;
   });
 
-  const championsMatches = matches.filter((m) => m.leagueId === 'champions');
-  const brasileiraoMatches = matches.filter((m) => m.leagueId === 'brasileirao');
+  const byLeagueCount: Record<string, number> = {};
+  effectiveMatches.forEach((m) => {
+    byLeagueCount[m.leagueId] = (byLeagueCount[m.leagueId] || 0) + 1;
+  });
 
   const counts = {
-    total: matches.length,
-    favorites: matches.filter((m) => isMatchFavorite(m, favoriteMatchIds, favoriteTeamNames)).length,
-    champions: championsMatches.length,
-    brasileirao: brasileiraoMatches.length,
-    live: matches.filter((m) => m.status.state === 'live').length,
-    finished: matches.filter((m) => m.status.state === 'finished').length,
-    scheduled: matches.filter((m) => m.status.state === 'scheduled').length,
+    total: effectiveMatches.length,
+    favorites: effectiveMatches.filter((m) => isMatchFavorite(m, favoriteMatchIds, favoriteTeamNames)).length,
+    live: effectiveMatches.filter((m) => m.status.state === 'live').length,
+    finished: effectiveMatches.filter((m) => m.status.state === 'finished').length,
+    scheduled: effectiveMatches.filter((m) => m.status.state === 'scheduled').length,
+    byLeague: byLeagueCount,
   };
 
   return (
     <div className="min-h-screen bg-black text-slate-100 flex flex-col font-sans selection:bg-[#00ff87] selection:text-black">
-      {/* Top Header with Green & Black Soccer Ball logo */}
+      {/* Top Header */}
       <Header
         isPolling={config.autoPolling}
         secondsLeft={secondsLeft}
         isLoading={isLoading || isRefreshing}
-        onRefresh={() => loadMatches(false)}
-        isSimulated={isSimulated}
-        onToggleSimulated={() => setIsSimulated(!isSimulated)}
         soundEnabled={soundEnabled}
         onToggleSound={() => setSoundEnabled(!soundEnabled)}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenStandaloneHtml={() => setIsStandaloneModalOpen(true)}
         onOpenStandings={() => {
-          setStandingsLeague(activeTab === 'champions' ? 'champions' : 'brasileirao');
+          setStandingsLeague(activeTab !== 'all' && activeTab !== 'favorites' ? activeTab : 'brasileirao');
           setIsStandingsOpen(true);
         }}
         liveMatchCount={counts.live}
         lastUpdated={lastUpdated}
       />
 
-      {/* Main Container */}
-      <main className="mx-auto w-full max-w-7xl flex-1 px-3.5 py-4 sm:px-6 space-y-4">
-        {/* Navigation, Date Selector, Calendar & Search */}
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <CompetitionTabs
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            statusFilter={statusFilter}
-            onStatusFilterChange={setStatusFilter}
-            counts={counts}
-            currentDateOption={dateOption}
-            dateFilterMode={dateFilterMode}
-            customDateParam={customDateParam}
-            onDateChange={handleDateOptionChange}
-            onOpenCalendar={() => setIsCalendarOpen(true)}
-            onOpenStandings={(league) => {
-              setStandingsLeague(league || (activeTab === 'champions' ? 'champions' : 'brasileirao'));
-              setIsStandingsOpen(true);
-            }}
-          />
+      {/* Main Container - Generous padding on mobile for perfectly centered interface without overflowing borders */}
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 md:px-8 py-3.5 space-y-4 overflow-x-hidden min-w-0 box-border">
+        {/* Navigation, Date Selector, Calendar & Integrated Responsive Search */}
+        <CompetitionTabs
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          counts={counts}
+          currentDateOption={dateOption}
+          dateFilterMode={dateFilterMode}
+          customDateParam={customDateParam}
+          onDateChange={handleDateOptionChange}
+          onOpenCalendar={() => setIsCalendarOpen(true)}
+          onOpenStandings={(league) => {
+            setStandingsLeague(league || (activeTab !== 'all' && activeTab !== 'favorites' ? activeTab : 'brasileirao'));
+            setIsStandingsOpen(true);
+          }}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+        />
 
-          {/* Quick Search */}
-          <div className="relative self-stretch sm:self-auto sm:w-64 shrink-0 font-mono">
-            <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-zinc-500" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar time ou autor..."
-              className="w-full rounded-xl bg-zinc-950 border border-zinc-800 pl-8 pr-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none"
-            />
-          </div>
-        </div>
-
-        {/* Date Filter Status Strip (Shows when viewing last 30 days, week, or specific date) */}
+        {/* Date Filter Status Strip */}
         {dateFilterMode !== 'today' && (
           <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-xs font-mono">
             <div className="flex items-center gap-2">
@@ -408,7 +467,7 @@ export default function App() {
                     : dateFilterMode === 'tomorrow'
                     ? 'Amanhã'
                     : dateFilterMode === 'last_week'
-                    ? 'Últimos 7 dias (Última Semana)'
+                    ? 'Últimos 7 dias'
                     : dateFilterMode === 'last_30_days'
                     ? 'Últimos 30 dias'
                     : dateFilterMode === 'next_week'
@@ -465,107 +524,43 @@ export default function App() {
           <div className="py-24 text-center">
             <Loader2 className="h-8 w-8 text-emerald-400 animate-spin mx-auto mb-2" />
             <p className="text-xs font-mono uppercase tracking-wider text-zinc-400">
-              Carregando placares em tempo real...
+              Sincronizando placares ao vivo...
             </p>
           </div>
-        ) : activeTab === 'split' ? (
-          /* Split View: Champions on left, Brasileirão on right */
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Column 1: Champions */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between rounded-lg bg-zinc-950 px-3 py-2 border border-zinc-800 font-mono">
-                <div className="flex items-center gap-2">
-                  <Trophy className="h-4 w-4 text-emerald-400" />
-                  <span className="font-bold text-xs text-white">UEFA CHAMPIONS LEAGUE</span>
-                </div>
-                <span className="text-[11px] font-bold text-emerald-400">
-                  {championsMatches.length} JOGOS
-                </span>
-              </div>
-
-              {championsMatches.length > 0 ? (
-                <div className="space-y-3">
-                  {championsMatches.map((match) => (
-                    <MatchCard
-                      key={match.id}
-                      match={match}
-                      isFavorite={isMatchFavorite(match, favoriteMatchIds, favoriteTeamNames)}
-                      onToggleFavorite={handleToggleFavoriteMatch}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="py-10 text-center rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-400 text-xs font-mono">
-                  Nenhum jogo da Champions para este filtro.
-                </div>
-              )}
-            </div>
-
-            {/* Column 2: Brasileirão */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between rounded-lg bg-zinc-950 px-3 py-2 border border-zinc-800 font-mono">
-                <div className="flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-emerald-400" />
-                  <span className="font-bold text-xs text-white">BRASILEIRÃO SÉRIE A</span>
-                </div>
-                <span className="text-[11px] font-bold text-emerald-400">
-                  {brasileiraoMatches.length} JOGOS
-                </span>
-              </div>
-
-              {brasileiraoMatches.length > 0 ? (
-                <div className="space-y-3">
-                  {brasileiraoMatches.map((match) => (
-                    <MatchCard
-                      key={match.id}
-                      match={match}
-                      isFavorite={isMatchFavorite(match, favoriteMatchIds, favoriteTeamNames)}
-                      onToggleFavorite={handleToggleFavoriteMatch}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="py-10 text-center rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-400 text-xs font-mono">
-                  Nenhum jogo do Brasileirão para este filtro.
-                </div>
-              )}
-            </div>
+        ) : filteredMatches.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            {filteredMatches.map((match) => (
+              <MatchCard
+                key={match.id}
+                match={match}
+                isFavorite={isMatchFavorite(match, favoriteMatchIds, favoriteTeamNames)}
+                onToggleFavorite={handleToggleFavoriteMatch}
+                isNotified={notificationSettings.subscribedMatchIds.includes(match.id)}
+                onToggleNotification={handleToggleNotification}
+              />
+            ))}
           </div>
         ) : (
-          /* Standard Matches Grid */
-          filteredMatches.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-              {filteredMatches.map((match) => (
-                <MatchCard
-                  key={match.id}
-                  match={match}
-                  isFavorite={isMatchFavorite(match, favoriteMatchIds, favoriteTeamNames)}
-                  onToggleFavorite={handleToggleFavoriteMatch}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="py-16 text-center rounded-xl border border-zinc-800 bg-zinc-950 p-6 space-y-2">
-              <Star className="h-7 w-7 text-emerald-400 mx-auto mb-1" />
-              <p className="text-sm font-bold text-zinc-200 font-mono">
-                {activeTab === 'favorites'
-                  ? 'Nenhum jogo favorito encontrado'
-                  : 'Nenhum jogo encontrado com os filtros atuais'}
-              </p>
-              <p className="text-xs text-zinc-400 max-w-sm mx-auto font-sans">
-                {activeTab === 'favorites'
-                  ? 'Clique na estrela de qualquer partida ou selecione um time acima para adicioná-lo aos favoritos.'
-                  : 'Tente alterar a data ou clicar em Calendário para selecionar os últimos 30 dias.'}
-              </p>
-            </div>
-          )
+          <div className="py-16 text-center rounded-xl border border-zinc-800 bg-zinc-950 p-6 space-y-2">
+            <Star className="h-7 w-7 text-emerald-400 mx-auto mb-1" />
+            <p className="text-sm font-bold text-zinc-200 font-mono">
+              {activeTab === 'favorites'
+                ? 'Nenhum jogo favorito encontrado'
+                : 'Nenhum jogo encontrado com os filtros atuais'}
+            </p>
+            <p className="text-xs text-zinc-400 max-w-sm mx-auto font-sans">
+              {activeTab === 'favorites'
+                ? 'Clique na estrela de qualquer partida ou selecione um time acima para adicioná-lo aos favoritos.'
+                : 'Tente alterar a data ou clicar em Calendário para selecionar os últimos 30 dias.'}
+            </p>
+          </div>
         )}
       </main>
 
       {/* Goal Notification Toast */}
       <GoalNotificationToast alert={goalAlert} onDismiss={() => setGoalAlert(null)} />
 
-      {/* Match Calendar Modal (30 days, last week, custom date picker) */}
+      {/* Match Calendar Modal */}
       <MatchCalendarModal
         isOpen={isCalendarOpen}
         onClose={() => setIsCalendarOpen(false)}
@@ -582,11 +577,11 @@ export default function App() {
         onSaveConfig={handleSaveConfig}
       />
 
-      {/* Standings Modal (Brasileirão & Champions League) */}
+      {/* Standings Modal */}
       <StandingsModal
         isOpen={isStandingsOpen}
         onClose={() => setIsStandingsOpen(false)}
-        defaultLeague={standingsLeague}
+        defaultLeague={standingsLeague as any}
       />
 
       {/* Standalone HTML Code Modal */}

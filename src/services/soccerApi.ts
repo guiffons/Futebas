@@ -449,16 +449,385 @@ export const SIMULATED_MATCHES: MatchData[] = [
     goals: [],
     events: [],
   },
+  {
+    id: 'sim-pl-1',
+    leagueId: 'premier',
+    leagueName: 'Premier League',
+    leagueLogo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/23.png',
+    homeTeam: {
+      id: '382',
+      name: 'Manchester City',
+      shortName: 'MCI',
+      logo: 'https://a.espncdn.com/i/teamlogos/soccer/500/382.png',
+      score: 3,
+    },
+    awayTeam: {
+      id: '359',
+      name: 'Arsenal',
+      shortName: 'ARS',
+      logo: 'https://a.espncdn.com/i/teamlogos/soccer/500/359.png',
+      score: 2,
+    },
+    status: {
+      state: 'live',
+      rawState: 'in',
+      displayClock: "74' 2T",
+      detail: '74º Minuto',
+      startTime: new Date().toISOString(),
+    },
+    venue: 'Etihad Stadium, Manchester',
+    goals: [
+      { id: 'g-pl-1', player: 'Erling Haaland', minute: "12'", teamId: '382', teamName: 'Manchester City' },
+      { id: 'g-pl-2', player: 'Bukayo Saka', minute: "28'", teamId: '359', teamName: 'Arsenal' },
+      { id: 'g-pl-3', player: 'Phil Foden', minute: "51'", teamId: '382', teamName: 'Manchester City' },
+      { id: 'g-pl-4', player: 'Gabriel Martinelli', minute: "66'", teamId: '359', teamName: 'Arsenal' },
+      { id: 'g-pl-5', player: 'Kevin De Bruyne', minute: "73'", teamId: '382', teamName: 'Manchester City' },
+    ],
+    events: [],
+    stats: {
+      possession: { home: 58, away: 42 },
+      shotsOnTarget: { home: 8, away: 5 },
+      totalShots: { home: 16, away: 11 },
+      corners: { home: 7, away: 4 },
+      fouls: { home: 10, away: 12 },
+    },
+  },
+  {
+    id: 'sim-esp-1',
+    leagueId: 'la_liga',
+    leagueName: 'La Liga',
+    leagueLogo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/15.png',
+    homeTeam: {
+      id: '86',
+      name: 'Real Madrid',
+      shortName: 'RMA',
+      logo: 'https://a.espncdn.com/i/teamlogos/soccer/500/86.png',
+      score: 3,
+    },
+    awayTeam: {
+      id: '83',
+      name: 'Barcelona',
+      shortName: 'BAR',
+      logo: 'https://a.espncdn.com/i/teamlogos/soccer/500/83.png',
+      score: 2,
+    },
+    status: {
+      state: 'live',
+      rawState: 'in',
+      displayClock: "85' 2T",
+      detail: 'El Clásico - 85º Minuto',
+      startTime: new Date().toISOString(),
+    },
+    venue: 'Santiago Bernabéu, Madrid',
+    goals: [
+      { id: 'g-esp-1', player: 'Vinícius Júnior', minute: "18'", teamId: '86', teamName: 'Real Madrid' },
+      { id: 'g-esp-2', player: 'Robert Lewandowski', minute: "32'", teamId: '83', teamName: 'Barcelona' },
+      { id: 'g-esp-3', player: 'Lamine Yamal', minute: "54'", teamId: '83', teamName: 'Barcelona' },
+      { id: 'g-esp-4', player: 'Jude Bellingham', minute: "69'", teamId: '86', teamName: 'Real Madrid' },
+      { id: 'g-esp-5', player: 'Kylian Mbappé', minute: "81'", teamId: '86', teamName: 'Real Madrid' },
+    ],
+    events: [],
+    stats: {
+      possession: { home: 51, away: 49 },
+      shotsOnTarget: { home: 9, away: 7 },
+      totalShots: { home: 18, away: 15 },
+      corners: { home: 6, away: 5 },
+      fouls: { home: 14, away: 16 },
+    },
+  },
+  {
+    id: 'sim-lib-1',
+    leagueId: 'libertadores',
+    leagueName: 'Copa Libertadores',
+    leagueLogo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/2678.png',
+    homeTeam: {
+      id: '819',
+      name: 'Flamengo',
+      shortName: 'FLA',
+      logo: 'https://a.espncdn.com/i/teamlogos/soccer/500/819.png',
+      score: 2,
+    },
+    awayTeam: {
+      id: '16',
+      name: 'River Plate',
+      shortName: 'RIV',
+      logo: 'https://a.espncdn.com/i/teamlogos/soccer/500/16.png',
+      score: 1,
+    },
+    status: {
+      state: 'live',
+      rawState: 'in',
+      displayClock: "63' 2T",
+      detail: '63º Minuto',
+      startTime: new Date().toISOString(),
+    },
+    venue: 'Maracanã, Rio de Janeiro',
+    goals: [
+      { id: 'g-lib-1', player: 'Pedro', minute: "22'", teamId: '819', teamName: 'Flamengo' },
+      { id: 'g-lib-2', player: 'Miguel Borja', minute: "40'", teamId: '16', teamName: 'River Plate' },
+      { id: 'g-lib-3', player: 'Giorgian de Arrascaeta', minute: "58'", teamId: '819', teamName: 'Flamengo' },
+    ],
+    events: [],
+    stats: {
+      possession: { home: 56, away: 44 },
+      shotsOnTarget: { home: 6, away: 4 },
+      totalShots: { home: 14, away: 10 },
+      corners: { home: 7, away: 3 },
+      fouls: { home: 13, away: 18 },
+    },
+  },
+  {
+    id: 'sim-cdb-1',
+    leagueId: 'copa_brasil',
+    leagueName: 'Copa do Brasil',
+    leagueLogo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/2153.png',
+    homeTeam: {
+      id: '874',
+      name: 'Corinthians',
+      shortName: 'COR',
+      logo: 'https://a.espncdn.com/i/teamlogos/soccer/500/874.png',
+      score: 2,
+    },
+    awayTeam: {
+      id: '1977',
+      name: 'Cruzeiro',
+      shortName: 'CRU',
+      logo: 'https://a.espncdn.com/i/teamlogos/soccer/500/1977.png',
+      score: 1,
+    },
+    status: {
+      state: 'live',
+      rawState: 'in',
+      displayClock: "54' 2T",
+      detail: '54º Minuto',
+      startTime: new Date().toISOString(),
+    },
+    venue: 'Neo Química Arena, São Paulo',
+    goals: [
+      { id: 'g-cdb-1', player: 'Yuri Alberto', minute: "19'", teamId: '874', teamName: 'Corinthians' },
+      { id: 'g-cdb-2', player: 'Matheus Pereira', minute: "37'", teamId: '1977', teamName: 'Cruzeiro' },
+      { id: 'g-cdb-3', player: 'Rodrigo Garro', minute: "48'", teamId: '874', teamName: 'Corinthians' },
+    ],
+    events: [],
+    stats: {
+      possession: { home: 52, away: 48 },
+      shotsOnTarget: { home: 5, away: 4 },
+      totalShots: { home: 12, away: 10 },
+      corners: { home: 5, away: 6 },
+      fouls: { home: 14, away: 15 },
+    },
+  },
+  {
+    id: 'sim-sb-1',
+    leagueId: 'serie_b',
+    leagueName: 'Brasileirão Série B',
+    leagueLogo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/86.png',
+    homeTeam: {
+      id: '2674',
+      name: 'Santos',
+      shortName: 'SAN',
+      logo: 'https://a.espncdn.com/i/teamlogos/soccer/500/2674.png',
+      score: 3,
+    },
+    awayTeam: {
+      id: '3445',
+      name: 'Sport Recife',
+      shortName: 'SPO',
+      logo: 'https://a.espncdn.com/i/teamlogos/soccer/500/3445.png',
+      score: 1,
+    },
+    status: {
+      state: 'finished',
+      rawState: 'post',
+      displayClock: 'Fim de Jogo',
+      detail: 'Encerrado',
+      startTime: new Date(Date.now() - 3600000 * 2).toISOString(),
+    },
+    venue: 'Vila Belmiro, Santos',
+    goals: [
+      { id: 'g-sb-1', player: 'Guilherme', minute: "14'", teamId: '2674', teamName: 'Santos' },
+      { id: 'g-sb-2', player: 'Lucas Lima', minute: "35'", teamId: '2674', teamName: 'Santos' },
+      { id: 'g-sb-3', player: 'Gustavo Coutinho', minute: "61'", teamId: '3445', teamName: 'Sport Recife' },
+      { id: 'g-sb-4', player: 'Willian Bigode', minute: "88'", teamId: '2674', teamName: 'Santos' },
+    ],
+    events: [],
+    stats: {
+      possession: { home: 61, away: 39 },
+      shotsOnTarget: { home: 8, away: 3 },
+      totalShots: { home: 16, away: 7 },
+      corners: { home: 8, away: 2 },
+      fouls: { home: 11, away: 16 },
+    },
+  },
+  {
+    id: 'sim-ita-1',
+    leagueId: 'serie_a_it',
+    leagueName: 'Serie A (Itália)',
+    leagueLogo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/12.png',
+    homeTeam: {
+      id: '110',
+      name: 'Inter de Milão',
+      shortName: 'INT',
+      logo: 'https://a.espncdn.com/i/teamlogos/soccer/500/110.png',
+      score: 2,
+    },
+    awayTeam: {
+      id: '111',
+      name: 'Juventus',
+      shortName: 'JUV',
+      logo: 'https://a.espncdn.com/i/teamlogos/soccer/500/111.png',
+      score: 1,
+    },
+    status: {
+      state: 'live',
+      rawState: 'in',
+      displayClock: "70' 2T",
+      detail: 'Derby d\'Italia - 70º Minuto',
+      startTime: new Date().toISOString(),
+    },
+    venue: 'San Siro, Milão',
+    goals: [
+      { id: 'g-ita-1', player: 'Lautaro Martínez', minute: "27'", teamId: '110', teamName: 'Inter de Milão' },
+      { id: 'g-ita-2', player: 'Dušan Vlahović', minute: "44'", teamId: '111', teamName: 'Juventus' },
+      { id: 'g-ita-3', player: 'Marcus Thuram', minute: "65'", teamId: '110', teamName: 'Inter de Milão' },
+    ],
+    events: [],
+    stats: {
+      possession: { home: 54, away: 46 },
+      shotsOnTarget: { home: 7, away: 4 },
+      totalShots: { home: 15, away: 11 },
+      corners: { home: 6, away: 4 },
+      fouls: { home: 13, away: 15 },
+    },
+  },
+  {
+    id: 'sim-ger-1',
+    leagueId: 'bundesliga',
+    leagueName: 'Bundesliga',
+    leagueLogo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/10.png',
+    homeTeam: {
+      id: '132',
+      name: 'Bayern München',
+      shortName: 'BAY',
+      logo: 'https://a.espncdn.com/i/teamlogos/soccer/500/132.png',
+      score: 3,
+    },
+    awayTeam: {
+      id: '131',
+      name: 'Bayer Leverkusen',
+      shortName: 'B04',
+      logo: 'https://a.espncdn.com/i/teamlogos/soccer/500/131.png',
+      score: 2,
+    },
+    status: {
+      state: 'live',
+      rawState: 'in',
+      displayClock: "77' 2T",
+      detail: '77º Minuto',
+      startTime: new Date().toISOString(),
+    },
+    venue: 'Allianz Arena, Munique',
+    goals: [
+      { id: 'g-ger-1', player: 'Harry Kane', minute: "16'", teamId: '132', teamName: 'Bayern München' },
+      { id: 'g-ger-2', player: 'Florian Wirtz', minute: "31'", teamId: '131', teamName: 'Bayer Leverkusen' },
+      { id: 'g-ger-3', player: 'Jamal Musiala', minute: "52'", teamId: '132', teamName: 'Bayern München' },
+      { id: 'g-ger-4', player: 'Victor Boniface', minute: "68'", teamId: '131', teamName: 'Bayer Leverkusen' },
+      { id: 'g-ger-5', player: 'Michael Olise', minute: "75'", teamId: '132', teamName: 'Bayern München' },
+    ],
+    events: [],
+    stats: {
+      possession: { home: 57, away: 43 },
+      shotsOnTarget: { home: 9, away: 6 },
+      totalShots: { home: 18, away: 13 },
+      corners: { home: 8, away: 5 },
+      fouls: { home: 10, away: 12 },
+    },
+  },
 ];
 
+export interface LeagueInfo {
+  id: string;
+  name: string;
+  slug: string;
+  shortCode: string;
+  category: 'brazil' | 'south_america' | 'europe';
+}
+
+export const SUPPORTED_LEAGUES: Record<string, LeagueInfo> = {
+  brasileirao: {
+    id: 'brasileirao',
+    name: 'Brasileirão Série A',
+    slug: 'bra.1',
+    shortCode: 'BRA-1',
+    category: 'brazil',
+  },
+  serie_b: {
+    id: 'serie_b',
+    name: 'Brasileirão Série B',
+    slug: 'bra.2',
+    shortCode: 'BRA-2',
+    category: 'brazil',
+  },
+  copa_brasil: {
+    id: 'copa_brasil',
+    name: 'Copa do Brasil',
+    slug: 'bra.copa_do_brasil',
+    shortCode: 'CDB',
+    category: 'brazil',
+  },
+  libertadores: {
+    id: 'libertadores',
+    name: 'Copa Libertadores',
+    slug: 'conmebol.libertadores',
+    shortCode: 'LIB',
+    category: 'south_america',
+  },
+  champions: {
+    id: 'champions',
+    name: 'UEFA Champions League',
+    slug: 'uefa.champions',
+    shortCode: 'UCL',
+    category: 'europe',
+  },
+  premier: {
+    id: 'premier',
+    name: 'Premier League',
+    slug: 'eng.1',
+    shortCode: 'PL',
+    category: 'europe',
+  },
+  la_liga: {
+    id: 'la_liga',
+    name: 'La Liga',
+    slug: 'esp.1',
+    shortCode: 'ESP',
+    category: 'europe',
+  },
+  serie_a_it: {
+    id: 'serie_a_it',
+    name: 'Serie A (Itália)',
+    slug: 'ita.1',
+    shortCode: 'ITA',
+    category: 'europe',
+  },
+  bundesliga: {
+    id: 'bundesliga',
+    name: 'Bundesliga',
+    slug: 'ger.1',
+    shortCode: 'GER',
+    category: 'europe',
+  },
+};
+
 /**
- * Fetch matches from ESPN public scoreboard
+ * Fetch matches from ESPN public scoreboard for any supported league
  */
 export async function fetchEspnScores(
-  league: 'champions' | 'brasileirao',
+  league: string,
   dateParam?: string
 ): Promise<MatchData[]> {
-  const slug = league === 'champions' ? 'uefa.champions' : 'bra.1';
+  const leagueConfig = SUPPORTED_LEAGUES[league];
+  const slug = leagueConfig?.slug || (league === 'champions' ? 'uefa.champions' : league);
   const isBrowser = typeof window !== 'undefined';
   const endpoint = isBrowser
     ? `/api/espn/apis/site/v2/sports/soccer/${slug}/scoreboard`
@@ -483,9 +852,9 @@ export async function fetchEspnScores(
   let data = await response.json();
   let events = data.events || [];
 
-  // If dateParam returned 0 events for Brasileirão (e.g. today is mid-week between rounds),
-  // automatically fetch the current round scoreboard so users always see current real matches!
-  if (events.length === 0 && dateParam && league === 'brasileirao') {
+  // If dateParam returned 0 events for Brasileirão or South American leagues,
+  // automatically fetch current round scoreboard so users always see current real matches!
+  if (events.length === 0 && dateParam && (league === 'brasileirao' || league === 'libertadores')) {
     try {
       const fallbackUrl = new URL(endpoint, isBrowser ? window.location.origin : undefined);
       const fallbackRes = await fetch(fallbackUrl.toString(), {
@@ -504,7 +873,7 @@ export async function fetchEspnScores(
     }
   }
 
-  const leagueName = data.leagues?.[0]?.name || (league === 'champions' ? 'UEFA Champions League' : 'Brasileirão Série A');
+  const leagueName = data.leagues?.[0]?.name || leagueConfig?.name || 'Futebol';
   const leagueLogo = data.leagues?.[0]?.logos?.[0]?.href;
 
   return events.map((ev: any): MatchData => {
@@ -542,12 +911,22 @@ export async function fetchEspnScores(
       getOfficialLogoUrl(awayTeamName) ||
       'https://a.espncdn.com/i/teamlogos/soccer/500/default-team-logo.png';
 
-    const lineups = deriveMatchLineups(
-      ev.id || `${homeTeamName}-${awayTeamName}`,
-      homeTeamName,
-      awayTeamName,
-      normalized.state
-    );
+    // Only derive lineups if the game is live, finished, or official lineups are announced
+    const hasOfficialLineups = normalized.state !== 'scheduled';
+    const lineups = hasOfficialLineups
+      ? deriveMatchLineups(
+          ev.id || `${homeTeamName}-${awayTeamName}`,
+          homeTeamName,
+          awayTeamName,
+          normalized.state
+        )
+      : undefined;
+
+    // Detect official broadcaster if available
+    const broadcast =
+      comp.broadcasts?.[0]?.names?.[0] ||
+      comp.geoBroadcasts?.[0]?.media?.shortName ||
+      undefined;
 
     return {
       id: ev.id || `${league}-${homeTeamName}-${awayTeamName}`,
@@ -576,9 +955,11 @@ export async function fetchEspnScores(
         startTime: ev.date || comp.date || new Date().toISOString(),
       },
       venue: comp.venue?.fullName ? `${comp.venue.fullName}${comp.venue.address?.city ? `, ${comp.venue.address.city}` : ''}` : undefined,
+      broadcast,
       goals,
       events: matchEvents,
       lineups,
+      hasOfficialLineups,
       stats:
         extractMatchStats(home.statistics, away.statistics) ||
         (normalized.state !== 'scheduled'
@@ -597,12 +978,13 @@ export async function fetchEspnScores(
  */
 export async function fetchMatchDetails(
   matchId: string,
-  league: 'champions' | 'brasileirao',
+  league: string,
   homeTeamName: string,
   awayTeamName: string,
   matchState?: 'live' | 'finished' | 'scheduled'
-): Promise<MatchLineups> {
-  const slug = league === 'champions' ? 'uefa.champions' : 'bra.1';
+): Promise<MatchLineups | undefined> {
+  const leagueConfig = SUPPORTED_LEAGUES[league];
+  const slug = leagueConfig?.slug || (league === 'champions' ? 'uefa.champions' : 'bra.1');
   const isBrowser = typeof window !== 'undefined';
   const endpoint = isBrowser
     ? `/api/espn/apis/site/v2/sports/soccer/${slug}/summary?event=${matchId}`
@@ -624,16 +1006,21 @@ export async function fetchMatchDetails(
     // Fallback to derive
   }
 
+  if (matchState === 'scheduled') {
+    return undefined;
+  }
+
   return deriveMatchLineups(matchId, homeTeamName, awayTeamName, matchState);
 }
 
 /**
- * Fetches tournament standings table for Brasileirão or Champions League
+ * Fetches tournament standings table for any supported league
  */
 export async function fetchTournamentStandings(
-  league: 'champions' | 'brasileirao'
+  league: string
 ): Promise<StandingEntry[]> {
-  const slug = league === 'champions' ? 'uefa.champions' : 'bra.1';
+  const leagueConfig = SUPPORTED_LEAGUES[league];
+  const slug = leagueConfig?.slug || (league === 'champions' ? 'uefa.champions' : 'bra.1');
   const isBrowser = typeof window !== 'undefined';
   const endpoint = isBrowser
     ? `/api/espn/apis/v2/sports/soccer/${slug}/standings`
@@ -832,7 +1219,7 @@ export async function fetchRapidApiScores(
  * Fetch matches for advanced date modes: last week, last 30 days, today, yesterday, tomorrow, next week, or custom date.
  */
 export async function fetchEspnScoresForDateMode(
-  league: 'champions' | 'brasileirao',
+  league: string,
   mode: 'today' | 'yesterday' | 'tomorrow' | 'last_week' | 'last_30_days' | 'next_week' | 'custom',
   customDate?: string
 ): Promise<MatchData[]> {

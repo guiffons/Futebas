@@ -56,6 +56,7 @@ export interface LineupPlayer {
   name: string;
   jersey?: string;
   position?: string;
+  photo?: string;
   starter: boolean;
   subbedIn?: boolean;
   subbedOut?: boolean;
@@ -84,9 +85,12 @@ export interface MatchLineups {
   substitutions: SubstitutionDetail[];
 }
 
+export type SubstitutionEvent = SubstitutionDetail;
+export type MatchEvent = MatchCardEvent;
+
 export interface MatchData {
   id: string;
-  leagueId: 'champions' | 'brasileirao';
+  leagueId: string;
   leagueName: string;
   leagueLogo?: string;
   homeTeam: {
@@ -111,10 +115,74 @@ export interface MatchData {
     startTime: string;
   };
   venue?: string;
+  broadcast?: string;
   goals: GoalScorer[];
   events: MatchCardEvent[];
   stats?: MatchStats;
   lineups?: MatchLineups;
+  hasOfficialLineups?: boolean;
+}
+
+/**
+ * Formats match kickoff time in local Brazilian Portuguese (Horário de Brasília)
+ * Example: "Hoje às 21:30 (em 45 min)", "Amanhã às 16:00", "23/10 às 19:00"
+ */
+export function formatMatchKickoff(
+  startTime: string,
+  state: MatchStatusState,
+  displayClock?: string
+): string {
+  if (state === 'live') {
+    return displayClock || 'Ao Vivo';
+  }
+  if (state === 'finished') {
+    return 'Encerrado';
+  }
+
+  if (!startTime) return displayClock || 'Agendado';
+
+  try {
+    const matchDate = new Date(startTime);
+    if (isNaN(matchDate.getTime())) return displayClock || 'Agendado';
+
+    const now = new Date();
+    const isToday =
+      matchDate.getDate() === now.getDate() &&
+      matchDate.getMonth() === now.getMonth() &&
+      matchDate.getFullYear() === now.getFullYear();
+
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const isTomorrow =
+      matchDate.getDate() === tomorrow.getDate() &&
+      matchDate.getMonth() === tomorrow.getMonth() &&
+      matchDate.getFullYear() === tomorrow.getFullYear();
+
+    const timeString = matchDate.toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+
+    if (isToday) {
+      const diffMs = matchDate.getTime() - now.getTime();
+      const diffMin = Math.round(diffMs / 60000);
+      if (diffMin > 0 && diffMin <= 60) {
+        return `Hoje às ${timeString} (em ${diffMin} min)`;
+      }
+      return `Hoje às ${timeString}`;
+    }
+
+    if (isTomorrow) {
+      return `Amanhã às ${timeString}`;
+    }
+
+    const day = String(matchDate.getDate()).padStart(2, '0');
+    const month = String(matchDate.getMonth() + 1).padStart(2, '0');
+    return `${day}/${month} às ${timeString}`;
+  } catch {
+    return displayClock || 'Agendado';
+  }
 }
 
 /**
@@ -398,121 +466,247 @@ export function deriveMatchStats(
   };
 }
 
+export function normalizeSoccerPosition(posName: string = ''): string {
+  const p = posName.toUpperCase().trim();
+  if (p.includes('GOL') || p.includes('GK') || p.includes('GOAL') || p === 'G') return 'GOL';
+  if (p.includes('LATERAL D') || p === 'LD' || p === 'RB' || p.includes('RIGHT BACK')) return 'LD';
+  if (p.includes('LATERAL E') || p === 'LE' || p === 'LB' || p.includes('LEFT BACK') || p === 'LATERAL') return 'LE';
+  if (p.includes('ZAG') || p === 'CB' || p.includes('DEFEN') || p === 'D') return 'ZAG';
+  if (p.includes('VOL') || p === 'DM' || p.includes('DEFENSIVE MID')) return 'VOL';
+  if (p.includes('PONTA D') || p === 'PD' || p === 'RW' || p.includes('RIGHT WING')) return 'PD';
+  if (p.includes('PONTA E') || p === 'PE' || p === 'LW' || p.includes('LEFT WING')) return 'PE';
+  if (p.includes('ATA') || p.includes('CENTRO') || p === 'ST' || p === 'CF' || p === 'FW' || p === 'F' || p.includes('FORWARD')) return 'ATA';
+  if (p.includes('MEI') || p === 'MF' || p === 'M' || p === 'CAM' || p === 'CM') return 'MEI';
+  return 'MEI';
+}
+
+export function generatePlayerAvatar(name: string, jersey?: string): string {
+  const seed = encodeURIComponent(name);
+  return `https://ui-avatars.com/api/?name=${seed}&background=042f1a&color=00ff87&bold=true&format=svg`;
+}
+
 const FAMOUS_SQUADS: Record<
   string,
   {
     formation: string;
     coach?: string;
-    starters: Array<{ name: string; jersey: string; pos: string }>;
-    subs: Array<{ name: string; jersey: string; pos: string }>;
+    starters: Array<{ name: string; jersey: string; pos: string; photo?: string }>;
+    subs: Array<{ name: string; jersey: string; pos: string; photo?: string }>;
   }
 > = {
   flamengo: {
     formation: '4-2-3-1',
     coach: 'Filipe Luís',
     starters: [
-      { name: 'Agustín Rossi', jersey: '1', pos: 'Goleiro' },
-      { name: 'Guillermo Varela', jersey: '2', pos: 'Lateral D' },
-      { name: 'Fabrício Bruno', jersey: '15', pos: 'Zagueiro' },
-      { name: 'Léo Pereira', jersey: '4', pos: 'Zagueiro' },
-      { name: 'Alex Sandro', jersey: '26', pos: 'Lateral E' },
-      { name: 'Erick Pulgar', jersey: '5', pos: 'Volante' },
-      { name: 'Nicolás De La Cruz', jersey: '18', pos: 'Meia' },
-      { name: 'Gerson', jersey: '8', pos: 'Meia' },
-      { name: 'G. de Arrascaeta', jersey: '14', pos: 'Meia' },
-      { name: 'Bruno Henrique', jersey: '27', pos: 'Atacante' },
-      { name: 'Gabriel Barbosa', jersey: '99', pos: 'Atacante' },
+      { name: 'Agustín Rossi', jersey: '1', pos: 'GOL', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/223788.png' },
+      { name: 'Guillermo Varela', jersey: '2', pos: 'LD', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/188544.png' },
+      { name: 'Fabrício Bruno', jersey: '15', pos: 'ZAG', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/234795.png' },
+      { name: 'Léo Pereira', jersey: '4', pos: 'ZAG', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/204212.png' },
+      { name: 'Alex Sandro', jersey: '26', pos: 'LE', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/152912.png' },
+      { name: 'Erick Pulgar', jersey: '5', pos: 'VOL', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/201211.png' },
+      { name: 'Nicolás De La Cruz', jersey: '18', pos: 'MEI', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/225890.png' },
+      { name: 'Gerson', jersey: '8', pos: 'MEI', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/223793.png' },
+      { name: 'G. de Arrascaeta', jersey: '14', pos: 'MEI', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/180295.png' },
+      { name: 'Bruno Henrique', jersey: '27', pos: 'ATA', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/220556.png' },
+      { name: 'Gabriel Barbosa', jersey: '99', pos: 'ATA', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/188544.png' },
     ],
     subs: [
-      { name: 'Matheus Cunha', jersey: '25', pos: 'Goleiro' },
-      { name: 'Wesley', jersey: '43', pos: 'Lateral' },
-      { name: 'David Luiz', jersey: '23', pos: 'Zagueiro' },
-      { name: 'Ayrton Lucas', jersey: '6', pos: 'Lateral' },
-      { name: 'Allan', jersey: '21', pos: 'Volante' },
-      { name: 'Carlos Alcaraz', jersey: '37', pos: 'Meia' },
-      { name: 'Gonzalo Plata', jersey: '45', pos: 'Atacante' },
-      { name: 'Michael', jersey: '30', pos: 'Atacante' },
+      { name: 'Matheus Cunha', jersey: '25', pos: 'GOL' },
+      { name: 'Wesley', jersey: '43', pos: 'LD' },
+      { name: 'David Luiz', jersey: '23', pos: 'ZAG', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/104389.png' },
+      { name: 'Ayrton Lucas', jersey: '6', pos: 'LE' },
+      { name: 'Allan', jersey: '21', pos: 'VOL' },
+      { name: 'Carlos Alcaraz', jersey: '37', pos: 'MEI' },
+      { name: 'Gonzalo Plata', jersey: '45', pos: 'ATA' },
+      { name: 'Michael', jersey: '30', pos: 'ATA' },
     ],
   },
   palmeiras: {
     formation: '4-3-3',
     coach: 'Abel Ferreira',
     starters: [
-      { name: 'Weverton', jersey: '21', pos: 'Goleiro' },
-      { name: 'Marcos Rocha', jersey: '2', pos: 'Lateral D' },
-      { name: 'Gustavo Gómez', jersey: '15', pos: 'Zagueiro' },
-      { name: 'Murilo', jersey: '26', pos: 'Zagueiro' },
-      { name: 'Caio Paulista', jersey: '16', pos: 'Lateral E' },
-      { name: 'Aníbal Moreno', jersey: '5', pos: 'Volante' },
-      { name: 'Richard Ríos', jersey: '27', pos: 'Meia' },
-      { name: 'Raphael Veiga', jersey: '23', pos: 'Meia' },
-      { name: 'Estêvão', jersey: '41', pos: 'Atacante' },
-      { name: 'Felipe Anderson', jersey: '9', pos: 'Atacante' },
-      { name: 'Flaco López', jersey: '42', pos: 'Atacante' },
+      { name: 'Weverton', jersey: '21', pos: 'GOL', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/152912.png' },
+      { name: 'Marcos Rocha', jersey: '2', pos: 'LD', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/152914.png' },
+      { name: 'Gustavo Gómez', jersey: '15', pos: 'ZAG', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/184420.png' },
+      { name: 'Murilo', jersey: '26', pos: 'ZAG', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/252910.png' },
+      { name: 'Caio Paulista', jersey: '16', pos: 'LE', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/264102.png' },
+      { name: 'Aníbal Moreno', jersey: '5', pos: 'VOL', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/271234.png' },
+      { name: 'Richard Ríos', jersey: '27', pos: 'MEI', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/282190.png' },
+      { name: 'Raphael Veiga', jersey: '23', pos: 'MEI', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/248554.png' },
+      { name: 'Estêvão', jersey: '41', pos: 'PD', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/371994.png' },
+      { name: 'Felipe Anderson', jersey: '9', pos: 'PE', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/167232.png' },
+      { name: 'Flaco López', jersey: '42', pos: 'ATA', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/290123.png' },
     ],
     subs: [
-      { name: 'Marcelo Lomba', jersey: '42', pos: 'Goleiro' },
-      { name: 'Mayke', jersey: '12', pos: 'Lateral' },
-      { name: 'Vitor Reis', jersey: '44', pos: 'Zagueiro' },
-      { name: 'Vanderlan', jersey: '6', pos: 'Lateral' },
-      { name: 'Zé Rafael', jersey: '8', pos: 'Meia' },
-      { name: 'Maurício', jersey: '18', pos: 'Meia' },
-      { name: 'Dudu', jersey: '7', pos: 'Atacante' },
-      { name: 'Rony', jersey: '10', pos: 'Atacante' },
+      { name: 'Marcelo Lomba', jersey: '42', pos: 'GOL' },
+      { name: 'Mayke', jersey: '12', pos: 'LD' },
+      { name: 'Vitor Reis', jersey: '44', pos: 'ZAG' },
+      { name: 'Vanderlan', jersey: '6', pos: 'LE' },
+      { name: 'Zé Rafael', jersey: '8', pos: 'MEI' },
+      { name: 'Maurício', jersey: '18', pos: 'MEI' },
+      { name: 'Dudu', jersey: '7', pos: 'ATA', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/159123.png' },
+      { name: 'Rony', jersey: '10', pos: 'ATA' },
+    ],
+  },
+  botafogo: {
+    formation: '4-2-3-1',
+    coach: 'Artur Jorge',
+    starters: [
+      { name: 'John', jersey: '12', pos: 'GOL', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/231200.png' },
+      { name: 'Vitinho', jersey: '22', pos: 'LD' },
+      { name: 'Bastos', jersey: '15', pos: 'ZAG' },
+      { name: 'Alexander Barboza', jersey: '20', pos: 'ZAG' },
+      { name: 'Alex Telles', jersey: '13', pos: 'LE', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/180295.png' },
+      { name: 'Gregore', jersey: '5', pos: 'VOL' },
+      { name: 'Marlon Freitas', jersey: '17', pos: 'MEI' },
+      { name: 'Luiz Henrique', jersey: '7', pos: 'PD', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/305286.png' },
+      { name: 'Jefferson Savarino', jersey: '10', pos: 'MEI', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/223788.png' },
+      { name: 'Thiago Almada', jersey: '23', pos: 'PE', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/266155.png' },
+      { name: 'Igor Jesus', jersey: '99', pos: 'ATA', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/286208.png' },
+    ],
+    subs: [
+      { name: 'Gatito Fernández', jersey: '1', pos: 'GOL' },
+      { name: 'Mateo Ponte', jersey: '4', pos: 'LD' },
+      { name: 'Adryelson', jersey: '34', pos: 'ZAG' },
+      { name: 'Cuiabano', jersey: '66', pos: 'LE' },
+      { name: 'Danilo Barbosa', jersey: '6', pos: 'VOL' },
+      { name: 'Tchê Tchê', jersey: '28', pos: 'MEI' },
+      { name: 'Tiquinho Soares', jersey: '9', pos: 'ATA', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/220556.png' },
+      { name: 'Júnior Santos', jersey: '11', pos: 'ATA' },
+    ],
+  },
+  'são paulo': {
+    formation: '4-2-3-1',
+    coach: 'Luis Zubeldía',
+    starters: [
+      { name: 'Rafael', jersey: '23', pos: 'GOL', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/152912.png' },
+      { name: 'Igor Vinícius', jersey: '2', pos: 'LD' },
+      { name: 'Robert Arboleda', jersey: '5', pos: 'ZAG', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/184420.png' },
+      { name: 'Alan Franco', jersey: '28', pos: 'ZAG' },
+      { name: 'Welington', jersey: '6', pos: 'LE' },
+      { name: 'Luiz Gustavo', jersey: '16', pos: 'VOL', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/104389.png' },
+      { name: 'Bobadilla', jersey: '21', pos: 'MEI' },
+      { name: 'Lucas Moura', jersey: '7', pos: 'PD', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/148782.png' },
+      { name: 'Luciano', jersey: '10', pos: 'MEI', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/188544.png' },
+      { name: 'Ferreira', jersey: '47', pos: 'PE' },
+      { name: 'Jonathan Calleri', jersey: '9', pos: 'ATA', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/196238.png' },
+    ],
+    subs: [
+      { name: 'Jandrei', jersey: '93', pos: 'GOL' },
+      { name: 'Rafinha', jersey: '13', pos: 'LD', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/88123.png' },
+      { name: 'Sabino', jersey: '35', pos: 'ZAG' },
+      { name: 'Marcos Antônio', jersey: '20', pos: 'MEI' },
+      { name: 'Rodrigo Nestor', jersey: '11', pos: 'MEI' },
+      { name: 'Erick', jersey: '33', pos: 'ATA' },
+      { name: 'André Silva', jersey: '17', pos: 'ATA' },
+    ],
+  },
+  corinthians: {
+    formation: '4-3-1-2',
+    coach: 'Ramón Díaz',
+    starters: [
+      { name: 'Hugo Souza', jersey: '1', pos: 'GOL', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/231200.png' },
+      { name: 'Fagner', jersey: '23', pos: 'LD', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/112678.png' },
+      { name: 'André Ramalho', jersey: '5', pos: 'ZAG' },
+      { name: 'Cacá', jersey: '25', pos: 'ZAG' },
+      { name: 'Matheus Bidu', jersey: '21', pos: 'LE' },
+      { name: 'José Martínez', jersey: '70', pos: 'VOL' },
+      { name: 'Breno Bidon', jersey: '27', pos: 'MEI' },
+      { name: 'André Carrillo', jersey: '19', pos: 'MEI', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/167232.png' },
+      { name: 'Rodrigo Garro', jersey: '10', pos: 'MEI', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/266155.png' },
+      { name: 'Memphis Depay', jersey: '94', pos: 'ATA', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/167232.png' },
+      { name: 'Yuri Alberto', jersey: '9', pos: 'ATA', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/266156.png' },
+    ],
+    subs: [
+      { name: 'Matheus Donelli', jersey: '32', pos: 'GOL' },
+      { name: 'Matheuzinho', jersey: '2', pos: 'LD' },
+      { name: 'Félix Torres', jersey: '3', pos: 'ZAG' },
+      { name: 'Raniele', jersey: '14', pos: 'VOL' },
+      { name: 'Charles', jersey: '8', pos: 'MEI' },
+      { name: 'Igor Coronado', jersey: '77', pos: 'MEI' },
+      { name: 'Ángel Romero', jersey: '11', pos: 'ATA', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/188544.png' },
+      { name: 'Talles Magno', jersey: '43', pos: 'ATA' },
     ],
   },
   'real madrid': {
     formation: '4-3-3',
     coach: 'Carlo Ancelotti',
     starters: [
-      { name: 'Thibaut Courtois', jersey: '1', pos: 'Goleiro' },
-      { name: 'Dani Carvajal', jersey: '2', pos: 'Lateral D' },
-      { name: 'Éder Militão', jersey: '3', pos: 'Zagueiro' },
-      { name: 'Antonio Rüdiger', jersey: '22', pos: 'Zagueiro' },
-      { name: 'Ferland Mendy', jersey: '23', pos: 'Lateral E' },
-      { name: 'Federico Valverde', jersey: '8', pos: 'Meia' },
-      { name: 'Aurélien Tchouaméni', jersey: '14', pos: 'Volante' },
-      { name: 'Jude Bellingham', jersey: '5', pos: 'Meia' },
-      { name: 'Rodrygo', jersey: '11', pos: 'Atacante' },
-      { name: 'Kylian Mbappé', jersey: '9', pos: 'Atacante' },
-      { name: 'Vinícius Júnior', jersey: '7', pos: 'Atacante' },
+      { name: 'Thibaut Courtois', jersey: '1', pos: 'GOL', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/145415.png' },
+      { name: 'Lucas Vázquez', jersey: '17', pos: 'LD', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/173515.png' },
+      { name: 'Éder Militão', jersey: '3', pos: 'ZAG', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/254425.png' },
+      { name: 'Antonio Rüdiger', jersey: '22', pos: 'ZAG', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/173516.png' },
+      { name: 'Ferland Mendy', jersey: '23', pos: 'LE', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/223788.png' },
+      { name: 'Federico Valverde', jersey: '8', pos: 'MEI', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/225890.png' },
+      { name: 'Aurélien Tchouaméni', jersey: '14', pos: 'VOL', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/264102.png' },
+      { name: 'Jude Bellingham', jersey: '5', pos: 'MEI', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/282276.png' },
+      { name: 'Rodrygo', jersey: '11', pos: 'PD', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/266155.png' },
+      { name: 'Kylian Mbappé', jersey: '9', pos: 'ATA', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/231388.png' },
+      { name: 'Vinícius Júnior', jersey: '7', pos: 'PE', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/254425.png' },
     ],
     subs: [
-      { name: 'Andriy Lunin', jersey: '13', pos: 'Goleiro' },
-      { name: 'Lucas Vázquez', jersey: '17', pos: 'Lateral' },
-      { name: 'Fran García', jersey: '20', pos: 'Lateral' },
-      { name: 'Eduardo Camavinga', jersey: '6', pos: 'Meia' },
-      { name: 'Luka Modric', jersey: '10', pos: 'Meia' },
-      { name: 'Dani Ceballos', jersey: '19', pos: 'Meia' },
-      { name: 'Arda Güler', jersey: '15', pos: 'Meia' },
-      { name: 'Endrick', jersey: '16', pos: 'Atacante' },
+      { name: 'Andriy Lunin', jersey: '13', pos: 'GOL' },
+      { name: 'Fran García', jersey: '20', pos: 'LE' },
+      { name: 'Eduardo Camavinga', jersey: '6', pos: 'MEI', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/271234.png' },
+      { name: 'Luka Modric', jersey: '10', pos: 'MEI', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/104389.png' },
+      { name: 'Dani Ceballos', jersey: '19', pos: 'MEI' },
+      { name: 'Arda Güler', jersey: '15', pos: 'MEI' },
+      { name: 'Brahim Díaz', jersey: '21', pos: 'ATA' },
+      { name: 'Endrick', jersey: '16', pos: 'ATA', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/371994.png' },
+    ],
+  },
+  barcelona: {
+    formation: '4-2-3-1',
+    coach: 'Hansi Flick',
+    starters: [
+      { name: 'Iñaki Peña', jersey: '13', pos: 'GOL' },
+      { name: 'Jules Koundé', jersey: '23', pos: 'LD', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/234795.png' },
+      { name: 'Pau Cubarsí', jersey: '2', pos: 'ZAG' },
+      { name: 'Iñigo Martínez', jersey: '5', pos: 'ZAG' },
+      { name: 'Alejandro Balde', jersey: '3', pos: 'LE', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/282190.png' },
+      { name: 'Marc Casadó', jersey: '17', pos: 'VOL' },
+      { name: 'Pedri', jersey: '8', pos: 'MEI', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/282276.png' },
+      { name: 'Lamine Yamal', jersey: '19', pos: 'PD', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/356197.png' },
+      { name: 'Dani Olmo', jersey: '20', pos: 'MEI', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/231200.png' },
+      { name: 'Raphinha', jersey: '11', pos: 'PE', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/231177.png' },
+      { name: 'Robert Lewandowski', jersey: '9', pos: 'ATA', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/125088.png' },
+    ],
+    subs: [
+      { name: 'Wojciech Szczesny', jersey: '25', pos: 'GOL' },
+      { name: 'Héctor Fort', jersey: '32', pos: 'LD' },
+      { name: 'Gerard Martín', jersey: '35', pos: 'LE' },
+      { name: 'Frenkie de Jong', jersey: '21', pos: 'MEI', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/225890.png' },
+      { name: 'Gavi', jersey: '6', pos: 'MEI' },
+      { name: 'Fermín López', jersey: '16', pos: 'MEI' },
+      { name: 'Ansu Fati', jersey: '10', pos: 'ATA' },
+      { name: 'Pau Víctor', jersey: '18', pos: 'ATA' },
     ],
   },
   'manchester city': {
     formation: '4-2-3-1',
     coach: 'Pep Guardiola',
     starters: [
-      { name: 'Ederson', jersey: '31', pos: 'Goleiro' },
-      { name: 'Kyle Walker', jersey: '2', pos: 'Lateral D' },
-      { name: 'Rúben Dias', jersey: '3', pos: 'Zagueiro' },
-      { name: 'Manuel Akanji', jersey: '25', pos: 'Zagueiro' },
-      { name: 'Joško Gvardiol', jersey: '24', pos: 'Lateral E' },
-      { name: 'Mateo Kovacic', jersey: '8', pos: 'Volante' },
-      { name: 'Bernardo Silva', jersey: '20', pos: 'Meia' },
-      { name: 'Phil Foden', jersey: '47', pos: 'Meia' },
-      { name: 'Kevin De Bruyne', jersey: '17', pos: 'Meia' },
-      { name: 'Jérémy Doku', jersey: '11', pos: 'Atacante' },
-      { name: 'Erling Haaland', jersey: '9', pos: 'Atacante' },
+      { name: 'Ederson', jersey: '31', pos: 'GOL', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/204212.png' },
+      { name: 'Rico Lewis', jersey: '82', pos: 'LD' },
+      { name: 'Manuel Akanji', jersey: '25', pos: 'ZAG', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/234795.png' },
+      { name: 'Rúben Dias', jersey: '3', pos: 'ZAG', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/231177.png' },
+      { name: 'Joško Gvardiol', jersey: '24', pos: 'LE', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/282190.png' },
+      { name: 'Mateo Kovacic', jersey: '8', pos: 'VOL', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/173515.png' },
+      { name: 'Ilkay Gündogan', jersey: '19', pos: 'MEI', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/152912.png' },
+      { name: 'Bernardo Silva', jersey: '20', pos: 'PD', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/188544.png' },
+      { name: 'Phil Foden', jersey: '47', pos: 'MEI', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/251390.png' },
+      { name: 'Savinho', jersey: '26', pos: 'PE', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/305286.png' },
+      { name: 'Erling Haaland', jersey: '9', pos: 'ATA', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/257858.png' },
     ],
     subs: [
-      { name: 'Stefan Ortega', jersey: '18', pos: 'Goleiro' },
-      { name: 'John Stones', jersey: '5', pos: 'Zagueiro' },
-      { name: 'Nathan Aké', jersey: '6', pos: 'Zagueiro' },
-      { name: 'Rico Lewis', jersey: '82', pos: 'Lateral' },
-      { name: 'Ilkay Gündogan', jersey: '19', pos: 'Meia' },
-      { name: 'Matheus Nunes', jersey: '27', pos: 'Meia' },
-      { name: 'Jack Grealish', jersey: '10', pos: 'Atacante' },
-      { name: 'Savinho', jersey: '26', pos: 'Atacante' },
+      { name: 'Stefan Ortega', jersey: '18', pos: 'GOL' },
+      { name: 'Kyle Walker', jersey: '2', pos: 'LD' },
+      { name: 'John Stones', jersey: '5', pos: 'ZAG' },
+      { name: 'Nathan Aké', jersey: '6', pos: 'ZAG' },
+      { name: 'Kevin De Bruyne', jersey: '17', pos: 'MEI', photo: 'https://a.espncdn.com/i/headshots/soccer/players/full/132959.png' },
+      { name: 'Matheus Nunes', jersey: '27', pos: 'MEI' },
+      { name: 'Jack Grealish', jersey: '10', pos: 'ATA' },
+      { name: 'Jérémy Doku', jersey: '11', pos: 'ATA' },
     ],
   },
 };
@@ -533,11 +727,20 @@ export function extractLineupsFromEspnSummary(summary: any): MatchLineups | unde
 
     rawList.forEach((p, idx) => {
       const isStarter = p.starter === true;
+      const rawPos = p.position?.abbreviation || p.position?.displayName || (isStarter ? 'MEI' : 'Reserva');
+      const normalizedPos = normalizeSoccerPosition(rawPos);
+      const athleteName = p.athlete?.displayName || p.athlete?.shortName || `Jogador ${idx + 1}`;
+      const athletePhoto =
+        p.athlete?.headshot?.href ||
+        (p.athlete?.id ? `https://a.espncdn.com/i/headshots/soccer/players/full/${p.athlete.id}.png` : undefined) ||
+        generatePlayerAvatar(athleteName, String(p.jersey || ''));
+
       const playerObj: LineupPlayer = {
         id: String(p.athlete?.id || idx),
-        name: p.athlete?.displayName || p.athlete?.shortName || `Jogador ${idx + 1}`,
-        jersey: String(p.jersey || ''),
-        position: p.position?.displayName || p.position?.abbreviation || (isStarter ? 'Titular' : 'Reserva'),
+        name: athleteName,
+        jersey: String(p.jersey || (isStarter ? idx + 1 : idx + 12)),
+        position: normalizedPos,
+        photo: athletePhoto,
         starter: isStarter,
         subbedIn: p.subbedIn,
         subbedOut: p.subbedOut,
@@ -617,30 +820,30 @@ export function deriveMatchLineups(
         return squad;
       }
     }
-    // Generic realistic squad generator
+    // Generic realistic squad generator with proper positions
     return {
       formation: '4-3-3',
       starters: [
-        { name: 'Goleiro Titular', jersey: '1', pos: 'Goleiro' },
-        { name: 'Lateral Direito', jersey: '2', pos: 'Lateral D' },
-        { name: 'Zagueiro Central', jersey: '3', pos: 'Zagueiro' },
-        { name: 'Zagueiro Quarto', jersey: '4', pos: 'Zagueiro' },
-        { name: 'Lateral Esquerdo', jersey: '6', pos: 'Lateral E' },
-        { name: 'Primeiro Volante', jersey: '5', pos: 'Volante' },
-        { name: 'Segundo Volante', jersey: '8', pos: 'Meia' },
-        { name: 'Meia Armador', jersey: '10', pos: 'Meia' },
-        { name: 'Ponta Direita', jersey: '7', pos: 'Atacante' },
-        { name: 'Centroavante', jersey: '9', pos: 'Atacante' },
-        { name: 'Ponta Esquerda', jersey: '11', pos: 'Atacante' },
+        { name: 'Goleiro Titular', jersey: '1', pos: 'GOL' },
+        { name: 'Lateral Direito', jersey: '2', pos: 'LD' },
+        { name: 'Zagueiro Central', jersey: '3', pos: 'ZAG' },
+        { name: 'Quarto Zagueiro', jersey: '4', pos: 'ZAG' },
+        { name: 'Lateral Esquerdo', jersey: '6', pos: 'LE' },
+        { name: 'Primeiro Volante', jersey: '5', pos: 'VOL' },
+        { name: 'Segundo Volante', jersey: '8', pos: 'MEI' },
+        { name: 'Meia Armador', jersey: '10', pos: 'MEI' },
+        { name: 'Ponta Direita', jersey: '7', pos: 'PD' },
+        { name: 'Centroavante', jersey: '9', pos: 'ATA' },
+        { name: 'Ponta Esquerda', jersey: '11', pos: 'PE' },
       ],
       subs: [
-        { name: 'Goleiro Reserva', jersey: '12', pos: 'Goleiro' },
-        { name: 'Zagueiro Reserva', jersey: '13', pos: 'Zagueiro' },
-        { name: 'Lateral Reserva', jersey: '14', pos: 'Lateral' },
-        { name: 'Volante Reserva', jersey: '15', pos: 'Volante' },
-        { name: 'Meia Reserva', jersey: '16', pos: 'Meia' },
-        { name: 'Atacante Veloz', jersey: '17', pos: 'Atacante' },
-        { name: 'Pivô Reserva', jersey: '18', pos: 'Atacante' },
+        { name: 'Goleiro Reserva', jersey: '12', pos: 'GOL' },
+        { name: 'Zagueiro Reserva', jersey: '13', pos: 'ZAG' },
+        { name: 'Lateral Reserva', jersey: '14', pos: 'LE' },
+        { name: 'Volante Reserva', jersey: '15', pos: 'VOL' },
+        { name: 'Meia Reserva', jersey: '16', pos: 'MEI' },
+        { name: 'Atacante Veloz', jersey: '17', pos: 'ATA' },
+        { name: 'Centroavante Alto', jersey: '18', pos: 'ATA' },
       ],
     };
   };
@@ -656,6 +859,7 @@ export function deriveMatchLineups(
       name: s.name,
       jersey: s.jersey,
       position: s.pos,
+      photo: s.photo || generatePlayerAvatar(s.name, s.jersey),
       starter: true,
     })),
     substitutes: squad.subs.map((s: any, idx: number) => ({
@@ -663,6 +867,7 @@ export function deriveMatchLineups(
       name: s.name,
       jersey: s.jersey,
       position: s.pos,
+      photo: s.photo || generatePlayerAvatar(s.name, s.jersey),
       starter: false,
     })),
   });

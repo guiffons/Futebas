@@ -310,40 +310,56 @@ export const TacticalPitch: React.FC<TacticalPitchProps> = ({
               }}
               className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer flex flex-col items-center group transition-transform duration-200 hover:scale-110 z-20"
             >
-              {/* Circular Player Jersey / Disc */}
+              {/* Circular Player Disc with Photo Headshot & Jersey Badge */}
               <div
-                className={`relative flex items-center justify-center w-7 h-7 sm:w-9 sm:h-9 rounded-full shadow-lg transition-all ${
+                className={`relative flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full shadow-lg transition-all overflow-visible ${
                   isSelected
-                    ? 'ring-4 ring-[#00ff87] bg-white text-black scale-110'
+                    ? 'ring-4 ring-[#00ff87] bg-white scale-110'
                     : player.position === 'GOL'
-                    ? 'bg-amber-500 text-black border-2 border-white font-black'
-                    : 'bg-black text-white border-2 border-[#00ff87] font-black'
+                    ? 'border-2 border-amber-400 bg-amber-950'
+                    : 'border-2 border-[#00ff87] bg-black'
                 }`}
               >
-                <span className="text-[10px] sm:text-xs font-mono font-black">
+                {player.photo ? (
+                  <img
+                    src={player.photo}
+                    alt={player.name}
+                    className="w-full h-full object-cover rounded-full bg-zinc-900"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <span className="text-[10px] sm:text-xs font-mono font-black text-white">
+                    {player.jersey || '•'}
+                  </span>
+                )}
+
+                {/* Jersey number small pill overlay */}
+                <span className="absolute -bottom-1 -left-1 px-1 py-0.2 rounded-full bg-black/90 border border-zinc-700 text-[8px] font-mono font-bold text-white shadow z-10">
                   {player.jersey || '•'}
                 </span>
 
                 {/* Goal indicator pill */}
                 {player.goalsCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center h-4 w-4 rounded-full bg-emerald-500 text-black font-black text-[9px] shadow-md border border-white">
+                  <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center h-4 w-4 rounded-full bg-emerald-500 text-black font-black text-[9px] shadow-md border border-white z-10">
                     ⚽{player.goalsCount > 1 ? player.goalsCount : ''}
                   </span>
                 )}
 
                 {/* Yellow / Red Card indicator */}
                 {player.redCard && (
-                  <span className="absolute -bottom-1 -right-1 w-2.5 h-3.5 bg-rose-600 rounded-xs border border-white shadow-sm" />
+                  <span className="absolute -bottom-1 -right-1 w-2.5 h-3.5 bg-rose-600 rounded-xs border border-white shadow-sm z-10" />
                 )}
                 {!player.redCard && player.yellowCard && (
-                  <span className="absolute -bottom-1 -right-1 w-2.5 h-3.5 bg-amber-400 rounded-xs border border-black shadow-sm" />
+                  <span className="absolute -bottom-1 -right-1 w-2.5 h-3.5 bg-amber-400 rounded-xs border border-black shadow-sm z-10" />
                 )}
 
                 {/* Substituted out indicator */}
                 {player.isSubbedOut && (
                   <span
                     title={`Substituído aos ${player.subMinute || ''}`}
-                    className="absolute -top-1 -left-1 flex items-center justify-center w-3.5 h-3.5 rounded-full bg-rose-600 text-white text-[9px] shadow"
+                    className="absolute -top-1 -left-1 flex items-center justify-center w-3.5 h-3.5 rounded-full bg-rose-600 text-white text-[9px] shadow z-10"
                   >
                     ⬇
                   </span>
@@ -374,15 +390,26 @@ export const TacticalPitch: React.FC<TacticalPitchProps> = ({
       {activePlayer && (
         <div className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-950 border border-emerald-500/40 text-xs shadow-md animate-in fade-in duration-150">
           <div className="flex items-center gap-2.5">
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#00ff87] text-black font-black font-mono text-sm">
-              {activePlayer.jersey}
+            <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-zinc-900 border-2 border-[#00ff87] overflow-hidden shrink-0 shadow-md">
+              {activePlayer.photo ? (
+                <img
+                  src={activePlayer.photo}
+                  alt={activePlayer.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="font-mono font-black text-white text-sm">
+                  {activePlayer.jersey}
+                </span>
+              )}
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-bold text-white text-sm font-sans">{activePlayer.name}</span>
-                <span className="px-1.5 py-0.2 rounded bg-zinc-800 text-[#00ff87] text-[10px] font-bold">
+                <span className="px-1.5 py-0.2 rounded bg-zinc-800 text-[#00ff87] text-[10px] font-bold font-mono">
                   {activePlayer.position}
                 </span>
+                <span className="text-zinc-500 font-mono text-[10px]">#{activePlayer.jersey}</span>
               </div>
               <p className="text-[11px] text-zinc-400">
                 {currentTeamName} • Titular
@@ -393,18 +420,18 @@ export const TacticalPitch: React.FC<TacticalPitchProps> = ({
 
           <div className="flex items-center gap-2 text-right">
             {activePlayer.goalsCount > 0 && (
-              <span className="px-2 py-1 rounded bg-emerald-950 border border-emerald-500/40 text-[#00ff87] font-bold text-[11px]">
+              <span className="px-2 py-1 rounded bg-emerald-950 border border-emerald-500/40 text-[#00ff87] font-bold text-[11px] font-mono">
                 ⚽ {activePlayer.goalsCount} {activePlayer.goalsCount > 1 ? 'Gols' : 'Gol'}
               </span>
             )}
             {activePlayer.yellowCard && (
               <span className="px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[10px] font-bold">
-                🟨 Cartão Amarelo
+                🟨 Amarelo
               </span>
             )}
             {activePlayer.redCard && (
               <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[10px] font-bold">
-                🟥 Cartão Vermelho
+                🟥 Vermelho
               </span>
             )}
           </div>
@@ -414,7 +441,7 @@ export const TacticalPitch: React.FC<TacticalPitchProps> = ({
       {/* Substituições Realizadas na Partida */}
       {teamSubs.length > 0 && (
         <div className="p-2.5 rounded-xl bg-zinc-950 border border-zinc-800 space-y-1.5">
-          <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider block mb-1">
+          <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider block mb-1 font-mono">
             Substituições do {currentTeamName}
           </span>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
@@ -423,7 +450,7 @@ export const TacticalPitch: React.FC<TacticalPitchProps> = ({
                 key={sub.id}
                 className="flex items-center justify-between p-1.5 rounded-lg bg-black/60 border border-zinc-800 text-[11px]"
               >
-                <span className="font-bold text-[#00ff87] bg-emerald-950 px-1.5 py-0.2 rounded border border-emerald-500/40 text-[10px]">
+                <span className="font-bold text-[#00ff87] bg-emerald-950 px-1.5 py-0.2 rounded border border-emerald-500/40 text-[10px] font-mono">
                   {sub.minute}
                 </span>
                 <div className="flex items-center gap-1.5 font-sans">
@@ -441,29 +468,38 @@ export const TacticalPitch: React.FC<TacticalPitchProps> = ({
         </div>
       )}
 
-      {/* Banco de Reservas */}
+      {/* Banco de Reservas com Fotos e Posições */}
       {currentLineup.substitutes && currentLineup.substitutes.length > 0 && (
         <div className="p-2.5 rounded-xl bg-zinc-950 border border-zinc-800 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">
+            <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider font-mono">
               Banco de Reservas ({currentLineup.substitutes.length} Jogadores)
             </span>
-            <span className="text-[10px] text-zinc-500">Opções para o técnico</span>
+            <span className="text-[10px] text-zinc-500 font-mono">Opções para o técnico</span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-[11px]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 text-[11px]">
             {currentLineup.substitutes.map((sub) => (
               <div
                 key={sub.id}
-                className="flex items-center gap-1.5 p-1 rounded bg-black/50 border border-zinc-850 truncate"
+                className="flex items-center gap-2 p-1.5 rounded-lg bg-black/50 border border-zinc-800/80 truncate"
               >
-                <span className="w-5 text-right font-mono font-bold text-zinc-500 text-[10px]">
+                <div className="w-6 h-6 rounded-full overflow-hidden bg-zinc-900 border border-zinc-700 shrink-0">
+                  {sub.photo ? (
+                    <img src={sub.photo} alt={sub.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-[9px] font-mono font-bold text-zinc-400 flex items-center justify-center h-full">
+                      {sub.jersey}
+                    </span>
+                  )}
+                </div>
+                <span className="w-4 text-center font-mono font-bold text-zinc-500 text-[10px]">
                   {sub.jersey}
                 </span>
-                <span className="font-sans text-zinc-300 truncate text-[11px]">
+                <span className="font-sans text-zinc-200 truncate text-[11px]">
                   {sub.name}
                 </span>
-                <span className="ml-auto text-[9px] font-mono text-zinc-500 shrink-0">
+                <span className="ml-auto text-[9px] font-mono text-emerald-400 bg-emerald-950/60 px-1 py-0.2 rounded border border-emerald-500/30 shrink-0">
                   {sub.position}
                 </span>
               </div>

@@ -21,7 +21,7 @@ import { TeamCrest } from './TeamCrest.tsx';
 interface StandingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  defaultLeague?: 'brasileirao' | 'champions';
+  defaultLeague?: string;
 }
 
 export const StandingsModal: React.FC<StandingsModalProps> = ({
@@ -29,7 +29,7 @@ export const StandingsModal: React.FC<StandingsModalProps> = ({
   onClose,
   defaultLeague = 'brasileirao',
 }) => {
-  const [selectedLeague, setSelectedLeague] = useState<'brasileirao' | 'champions'>(defaultLeague);
+  const [selectedLeague, setSelectedLeague] = useState<string>(defaultLeague);
   const [standings, setStandings] = useState<StandingEntry[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -39,7 +39,7 @@ export const StandingsModal: React.FC<StandingsModalProps> = ({
     setSelectedLeague(defaultLeague);
   }, [defaultLeague]);
 
-  const loadStandings = useCallback(async (league: 'brasileirao' | 'champions') => {
+  const loadStandings = useCallback(async (league: string) => {
     setIsLoading(true);
     try {
       const data = await fetchTournamentStandings(league);
@@ -143,31 +143,31 @@ export const StandingsModal: React.FC<StandingsModalProps> = ({
         {/* Controls: League Switch & Search */}
         <div className="flex flex-col gap-3 border-b border-zinc-800/80 px-4 py-3 sm:px-6 sm:flex-row sm:items-center sm:justify-between bg-zinc-950/60 font-mono text-xs">
           {/* League Tabs */}
-          <div className="flex items-center gap-1.5 rounded-xl bg-black p-1 border border-zinc-800 w-fit">
-            <button
-              type="button"
-              onClick={() => setSelectedLeague('brasileirao')}
-              className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 font-bold transition-all ${
-                isBrasileirao
-                  ? 'bg-emerald-500 text-black shadow-sm'
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
-              }`}
-            >
-              <Shield className="h-3.5 w-3.5" />
-              <span>BRASILEIRÃO SÉRIE A</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedLeague('champions')}
-              className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 font-bold transition-all ${
-                !isBrasileirao
-                  ? 'bg-emerald-500 text-black shadow-sm'
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
-              }`}
-            >
-              <Trophy className="h-3.5 w-3.5" />
-              <span>CHAMPIONS LEAGUE</span>
-            </button>
+          <div className="flex items-center gap-1.5 rounded-xl bg-black p-1 border border-zinc-800 overflow-x-auto scrollbar-none max-w-full">
+            {[
+              { id: 'brasileirao', label: 'Brasileirão' },
+              { id: 'champions', label: 'Champions' },
+              { id: 'premier', label: 'Premier League' },
+              { id: 'la_liga', label: 'La Liga' },
+              { id: 'libertadores', label: 'Libertadores' },
+            ].map((lg) => {
+              const isSel = selectedLeague === lg.id;
+              return (
+                <button
+                  key={lg.id}
+                  type="button"
+                  onClick={() => setSelectedLeague(lg.id)}
+                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-bold transition-all text-xs ${
+                    isSel
+                      ? 'bg-emerald-500 text-black shadow-sm'
+                      : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                  }`}
+                >
+                  <Trophy className="h-3 w-3" />
+                  <span>{lg.label.toUpperCase()}</span>
+                </button>
+              );
+            })}
           </div>
 
           {/* Search Input */}
